@@ -18,8 +18,16 @@ namespace MemoryShark.Windows.Memory.Regions
 
         public MemoryBasicInformation FindFreeRegion(long? nearThisAddress)
         {
-            var minAddress = nearThisAddress.HasValue ? (ulong)nearThisAddress.Value - MaximumAllocationRange : ulong.MinValue;
-            var maxAddress = nearThisAddress.HasValue ? (ulong)nearThisAddress.Value + MaximumAllocationRange : ulong.MaxValue;
+            if (nearThisAddress is < 0)
+                throw new ArgumentOutOfRangeException(nameof(nearThisAddress), "Address cannot be negative.");
+
+            ulong? targetAddress = nearThisAddress.HasValue ? (ulong)nearThisAddress.Value : null;
+            var minAddress = targetAddress is > MaximumAllocationRange
+                ? targetAddress.Value - MaximumAllocationRange
+                : ulong.MinValue;
+            var maxAddress = targetAddress is <= ulong.MaxValue - MaximumAllocationRange
+                ? targetAddress.Value + MaximumAllocationRange
+                : ulong.MaxValue;
 
             var regions = memoryRegionEnumerator
                 .EnumerateMemoryRegions()
@@ -31,8 +39,10 @@ namespace MemoryShark.Windows.Memory.Regions
             if (!regions.Any())
                 throw new Exception();
 
-            return nearThisAddress.HasValue ?
-                regions.OrderBy(mr => (int)Math.Abs((decimal)(mr.BaseAddress - (ulong)nearThisAddress.Value))).First() :
+            return targetAddress.HasValue ?
+                regions.OrderBy(memRegion => memRegion.BaseAddress >= targetAddress.Value
+                    ? memRegion.BaseAddress - targetAddress.Value
+                    : targetAddress.Value - memRegion.BaseAddress).First() :
                 regions.First();
         }
     }
