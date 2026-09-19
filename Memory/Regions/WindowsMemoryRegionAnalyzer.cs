@@ -1,34 +1,38 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Runtime.InteropServices;
 using MemoryShark.Exceptions;
 using MemoryShark.Memory.Regions;
 using MemoryShark.Processes;
 using MemoryShark.Windows.Native;
 using MemoryShark.Windows.Native.Structures;
 
-namespace MemoryShark.Windows.Memory.Regions
+namespace MemoryShark.Windows.Memory.Regions;
+
+public class WindowsMemoryRegionAnalyzer : IMemoryRegionAnalyzer<MemoryBasicInformation>
 {
-    public class WindowsMemoryRegionAnalyzer : IMemoryRegionAnalyzer<MemoryBasicInformation>
+    private readonly IProcessHandler processHandler;
+
+    public WindowsMemoryRegionAnalyzer(IProcessHandler processHandler)
     {
-        private readonly IProcessHandler processHandler;
+        this.processHandler = processHandler ?? throw new ArgumentNullException(nameof(processHandler));
+    }
 
-        public WindowsMemoryRegionAnalyzer(IProcessHandler processHandler)
-        {
-            this.processHandler = processHandler ?? throw new ArgumentNullException(nameof(processHandler));
-        }
+    public MemoryBasicInformation Analyze(long address)
+    {
+        if (!OperatingSystem.IsWindows())
+            throw new PlatformNotSupportedException("Windows memory-region queries are only available on Windows.");
 
-        public MemoryBasicInformation Analyze(long address)
-        {
-            var virtualQueryWasSuccessful = WindowsPinvoke.VirtualQueryEx(processHandler.Process.Handle, (IntPtr)address, out MemoryBasicInformation memInfo, (uint)Marshal.SizeOf<MemoryBasicInformation>()) != 0;
+        // The current MemoryBasicInformation interop layout matches the 64-bit native structure.
+        // Reject a 32-bit caller before passing that incompatible layout to VirtualQueryEx.
+        if (!Environment.Is64BitProcess)
+            throw new PlatformNotSupportedException(
+                "Memory-region queries require a 64-bit calling process because the current MemoryBasicInformation layout is 64-bit.");
 
-            if (!virtualQueryWasSuccessful)
-                throw new PinvokeException(nameof(WindowsPinvoke.VirtualQueryEx), Marshal.GetLastPInvokeError());
+        var virtualQueryWasSuccessful = WindowsPinvoke.VirtualQueryEx(processHandler.Process.Handle, (IntPtr)address,
+            out var memInfo, new UIntPtr((uint)Marshal.SizeOf<MemoryBasicInformation>())) != UIntPtr.Zero;
 
-            return memInfo;
-        }
+        if (!virtualQueryWasSuccessful)
+            throw new PinvokeException(nameof(WindowsPinvoke.VirtualQueryEx), Marshal.GetLastPInvokeError());
+
+        return memInfo;
     }
 }

@@ -1,48 +1,41 @@
 ﻿using MemoryShark.Memory;
-using MemoryShark.Processes;
-using MemoryShark.Scanning.Algorithms;
-using MemoryShark.Windows.Memory;
-using MemoryShark.Windows.Native;
-using MemoryShark.Windows.Native.Constants;
-using MemoryShark.Windows.Native.Structures;
-using System.Runtime.InteropServices;
 using MemoryShark.Memory.Regions;
+using MemoryShark.Scanning.Algorithms;
 using MemoryShark.Scanning.Scanners;
+using MemoryShark.Windows.Native.Structures;
 
-namespace MemoryShark.Windows.Scanning.Scanners
+namespace MemoryShark.Windows.Scanning.Scanners;
+
+public class WindowsScanner : IScanner
 {
-    public class WindowsScanner : IScanner
+    private readonly IMemoryIO memoryIO;
+    private readonly IMemoryRegionEnumerator<MemoryBasicInformation> memoryRegionEnumerator;
+
+    public WindowsScanner(IMemoryIO memoryIO, IMemoryRegionEnumerator<MemoryBasicInformation> memoryRegionEnumerator,
+        Predicate<MemoryBasicInformation> memoryRegionFilter)
     {
-        public Predicate<MemoryBasicInformation> MemoryRegionFilter { get; set; }
+        this.memoryIO = memoryIO ?? throw new ArgumentNullException(nameof(memoryIO));
+        this.memoryRegionEnumerator =
+            memoryRegionEnumerator ?? throw new ArgumentNullException(nameof(memoryRegionEnumerator));
+        MemoryRegionFilter = memoryRegionFilter ?? throw new ArgumentNullException(nameof(memoryRegionFilter));
+    }
 
-        private readonly IMemoryIO memoryIO;
-        private readonly IMemoryRegionEnumerator<MemoryBasicInformation> memoryRegionEnumerator;
+    public Predicate<MemoryBasicInformation> MemoryRegionFilter { get; set; }
 
-        public WindowsScanner(IMemoryIO memoryIO, IMemoryRegionEnumerator<MemoryBasicInformation> memoryRegionEnumerator, Predicate<MemoryBasicInformation> memoryRegionFilter)
+    public long[] Scan(IScanAlgorithm algorithm, byte?[] signature)
+    {
+        var matchedAddresses = new List<long>();
+
+        foreach (var region in memoryRegionEnumerator.EnumerateMemoryRegions()
+                     .Where(memRegion => MemoryRegionFilter(memRegion)))
         {
-            this.memoryIO = memoryIO ?? throw new ArgumentNullException(nameof(memoryIO));
-            this.memoryRegionEnumerator = memoryRegionEnumerator ?? throw new ArgumentNullException(nameof(memoryRegionEnumerator));
-            this.MemoryRegionFilter = memoryRegionFilter ?? throw new ArgumentNullException(nameof(memoryRegionFilter));
+            var bytesRead = memoryIO.ReadMemory((long)region.BaseAddress, region.RegionSize);
+
+            var matches = algorithm.FindMatches(bytesRead, signature);
+
+            foreach (var index in matches) matchedAddresses.Add((long)region.BaseAddress + index);
         }
 
-        public long[] Scan(IScanAlgorithm algorithm, byte?[] signature)
-        {
-            var matchedAddresses = new List<long>();
-
-            foreach (var region in memoryRegionEnumerator.EnumerateMemoryRegions().Where(memRegion => MemoryRegionFilter(memRegion)))
-            {
-                byte[] bytesRead = memoryIO.ReadMemory((long)region.BaseAddress, region.RegionSize);
-
-                var matches = algorithm.FindMatches(bytesRead, signature);
-
-                foreach (var index in matches)
-                {
-                    matchedAddresses.Add((long)region.BaseAddress + index);
-                }
-            }
-
-            return matchedAddresses.ToArray();
-        }
+        return matchedAddresses.ToArray();
     }
 }
-
