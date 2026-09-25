@@ -11,10 +11,10 @@ for compatibility; new nearby-allocation code should use this service instead.
 var processHandler = new WindowsProcessHandler(process);
 var memoryAllocator = new WindowsMemoryAllocator(processHandler);
 var memoryDeallocator = new WindowsMemoryDeallocator(processHandler);
-var memoryRegionAnalyzer = new WindowsMemoryRegionAnalyzer(processHandler);
+var memoryRegionInformationProvider = new WindowsMemoryRegionInformationProvider(processHandler);
 var systemInformationProvider = new WindowsSystemInformationProvider();
 var memoryRegionEnumerator = new WindowsMemoryRegionEnumerator(
-    memoryRegionAnalyzer, systemInformationProvider);
+    memoryRegionInformationProvider, systemInformationProvider);
 
 var candidateProvider = new WindowsNearbyAllocationCandidateProvider(
     memoryRegionEnumerator, systemInformationProvider);
@@ -36,10 +36,10 @@ finally
 
 All process-related dependencies must use the same process. The system-information
 provider retrieves Windows system information independently of allocation or caller
-bitness. The native memory-region analyzer requires a 64-bit calling process because
+bitness. The native memory-region information provider requires a 64-bit calling process because
 of its existing memory-region interop layout. This change does not add general
 cross-bitness support. The region enumerator accepts an injected system-information
-provider; its original single-argument constructor remains as a convenience overload.
+provider alongside the memory-region information provider.
 
 ## Contract and behavior
 

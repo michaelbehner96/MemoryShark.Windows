@@ -1,42 +1,33 @@
-﻿using MemoryShark.Memory.Regions;
-using MemoryShark.Windows.Native;
+using MemoryShark.Memory.Regions;
+using MemoryShark.Providers;
 using MemoryShark.Windows.Native.Structures;
+using MemoryShark.Windows.Providers;
 
 namespace MemoryShark.Windows.Memory.Regions;
 
 public class WindowsMemoryRegionEnumerator : IMemoryRegionEnumerator<MemoryBasicInformation>
 {
-    private readonly IMemoryRegionAnalyzer<MemoryBasicInformation> memoryRegionAnalyzer;
+    private readonly IMemoryRegionInformationProvider<MemoryBasicInformation> memoryRegionInformationProvider;
     private readonly IWindowsSystemInformationProvider systemInformationProvider;
 
-    // Preserve the existing constructor for callers that use the native provider.
-    public WindowsMemoryRegionEnumerator(IMemoryRegionAnalyzer<MemoryBasicInformation> memoryRegionAnalyzer)
-        : this(memoryRegionAnalyzer, new WindowsSystemInformationProvider())
+    public WindowsMemoryRegionEnumerator(IMemoryRegionInformationProvider<MemoryBasicInformation> memoryRegionInformationProvider, IWindowsSystemInformationProvider systemInformationProvider)
     {
-    }
-
-    public WindowsMemoryRegionEnumerator(IMemoryRegionAnalyzer<MemoryBasicInformation> memoryRegionAnalyzer,
-        IWindowsSystemInformationProvider systemInformationProvider)
-    {
-        this.memoryRegionAnalyzer =
-            memoryRegionAnalyzer ?? throw new ArgumentNullException(nameof(memoryRegionAnalyzer));
-        this.systemInformationProvider = systemInformationProvider
-                                         ?? throw new ArgumentNullException(nameof(systemInformationProvider));
+        this.memoryRegionInformationProvider = memoryRegionInformationProvider ?? throw new ArgumentNullException(nameof(memoryRegionInformationProvider));
+        this.systemInformationProvider = systemInformationProvider ?? throw new ArgumentNullException(nameof(systemInformationProvider));
     }
 
     public IEnumerable<MemoryBasicInformation> EnumerateMemoryRegions()
     {
         var systemInformation = systemInformationProvider.GetSystemInformation();
-        var memoryRegion = new MemoryBasicInformation();
+        MemoryBasicInformation memoryRegion;
 
         var minimumAddress = systemInformation.MinimumApplicationAddress.ToInt64();
         var maximumAddress = systemInformation.MaximumApplicationAddress.ToInt64();
 
-        for (var currentAddress = minimumAddress;
-             currentAddress < maximumAddress;
-             currentAddress += (long)memoryRegion.RegionSize)
+        for (var currentAddress = minimumAddress; currentAddress < maximumAddress; currentAddress += (long)memoryRegion.RegionSize)
         {
-            memoryRegion = memoryRegionAnalyzer.Analyze(currentAddress);
+            memoryRegion = memoryRegionInformationProvider.GetRegionInformation(currentAddress);
+
             yield return memoryRegion;
         }
     }

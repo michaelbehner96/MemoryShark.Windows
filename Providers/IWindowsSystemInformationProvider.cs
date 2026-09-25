@@ -1,6 +1,6 @@
 using MemoryShark.Windows.Native.Structures;
 
-namespace MemoryShark.Windows.Native;
+namespace MemoryShark.Windows.Providers;
 
 public interface IWindowsSystemInformationProvider
 {

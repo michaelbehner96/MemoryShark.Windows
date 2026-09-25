@@ -1,6 +1,7 @@
+using MemoryShark.Windows.Native;
 using MemoryShark.Windows.Native.Structures;
 
-namespace MemoryShark.Windows.Native;
+namespace MemoryShark.Windows.Providers;
 
 public class WindowsSystemInformationProvider : IWindowsSystemInformationProvider
 {
@@ -11,6 +12,7 @@ public class WindowsSystemInformationProvider : IWindowsSystemInformationProvide
 
         var systemInformation = new SystemInformation();
         WindowsPinvoke.GetSystemInfo(ref systemInformation);
+
         return systemInformation;
     }
 }

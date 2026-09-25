@@ -1,3 +1,5 @@
+using MemoryShark.Windows.Providers;
+using MemoryShark.Providers;
 using System.Diagnostics;
 using MemoryShark.Exceptions;
 using MemoryShark.Memory.Allocation;
@@ -168,19 +170,19 @@ namespace NearbyAllocation.Tests
         private static void TestRegionEnumeratorUsesInjectedSystemInformation()
         {
             var systemInformationProvider = new TestSystemInformationProvider(4, 16, 16, 64);
-            var memoryRegionAnalyzer = new TestRegionAnalyzer();
+            var memoryRegionInformationProvider = new TestRegionInformationProvider();
             var memoryRegionEnumerator = new WindowsMemoryRegionEnumerator(
-                memoryRegionAnalyzer, systemInformationProvider);
+                memoryRegionInformationProvider, systemInformationProvider);
 
             MemoryBasicInformation[] regions = memoryRegionEnumerator.EnumerateMemoryRegions().ToArray();
             Assert(systemInformationProvider.QueryCount == 1, "Query injected system information once per enumeration.");
-            Assert(memoryRegionAnalyzer.QueriedAddresses.SequenceEqual(new long[] { 16, 32, 48 }),
+            Assert(memoryRegionInformationProvider.QueriedAddresses.SequenceEqual(new long[] { 16, 32, 48 }),
                 "Region queries must follow the injected address bounds.");
             Assert(regions.Select(region => region.BaseAddress).SequenceEqual(new ulong[] { 16, 32, 48 }),
                 "Enumeration must return the injected analyzer's regions.");
             Expect<ArgumentNullException>(() => new WindowsMemoryRegionEnumerator(null!, systemInformationProvider));
-            Expect<ArgumentNullException>(() => new WindowsMemoryRegionEnumerator(memoryRegionAnalyzer, null!));
-            Expect<ArgumentNullException>(() => new WindowsMemoryRegionEnumerator(null!));
+            Expect<ArgumentNullException>(() => new WindowsMemoryRegionEnumerator(memoryRegionInformationProvider, null!));
+
         }
 
         private static void TestNativeAllocation()
@@ -189,7 +191,7 @@ namespace NearbyAllocation.Tests
             var processHandler = new WindowsProcessHandler(process);
             var allocator = new WindowsMemoryAllocator(processHandler);
             var deallocator = new WindowsMemoryDeallocator(processHandler);
-            var analyzer = new WindowsMemoryRegionAnalyzer(processHandler);
+            var analyzer = new WindowsMemoryRegionInformationProvider(processHandler);
             var systemInformationProvider = new WindowsSystemInformationProvider();
             var selector = new WindowsNearbyAllocationCandidateProvider(
                 new WindowsMemoryRegionEnumerator(analyzer, systemInformationProvider), systemInformationProvider);
@@ -206,7 +208,7 @@ namespace NearbyAllocation.Tests
                         * systemInformation.PageSize;
                     Assert(allocatedAddress >= anchorAddress - 16 * 1024 * 1024
                         && allocatedAddress + roundedSize - 1 <= anchorAddress + 16 * 1024 * 1024, "Native range.");
-                    Assert(analyzer.Analyze(allocatedAddress).State == MemoryState.Commit, "Native allocation committed.");
+                    Assert(analyzer.GetRegionInformation(allocatedAddress).State == MemoryState.Commit, "Native allocation committed.");
                 }
                 finally { deallocator.Deallocate(allocatedAddress); }
             }
@@ -270,11 +272,11 @@ namespace NearbyAllocation.Tests
             return information;
         }
     }
-    internal sealed class TestRegionAnalyzer : IMemoryRegionAnalyzer<MemoryBasicInformation>
+    internal sealed class TestRegionInformationProvider : IMemoryRegionInformationProvider<MemoryBasicInformation>
     {
         public List<long> QueriedAddresses { get; } = new();
 
-        public MemoryBasicInformation Analyze(long address)
+        public MemoryBasicInformation GetRegionInformation(long address)
         {
             QueriedAddresses.Add(address);
             return new MemoryBasicInformation

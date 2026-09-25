@@ -20,27 +20,17 @@ public class WindowsFreeMemoryRegionFinder : IFreeMemoryRegionFinder<MemoryBasic
             throw new ArgumentOutOfRangeException(nameof(nearThisAddress), "Address cannot be negative.");
 
         ulong? targetAddress = nearThisAddress.HasValue ? (ulong)nearThisAddress.Value : null;
-        var minAddress = targetAddress is > MaximumAllocationRange
-            ? targetAddress.Value - MaximumAllocationRange
-            : ulong.MinValue;
-        var maxAddress = targetAddress is <= ulong.MaxValue - MaximumAllocationRange
-            ? targetAddress.Value + MaximumAllocationRange
-            : ulong.MaxValue;
+        var minAddress = targetAddress is > MaximumAllocationRange ? targetAddress.Value - MaximumAllocationRange : ulong.MinValue;
+        var maxAddress = targetAddress is <= ulong.MaxValue - MaximumAllocationRange ? targetAddress.Value + MaximumAllocationRange : ulong.MaxValue;
 
-        var regions = memoryRegionEnumerator
-            .EnumerateMemoryRegions()
-            .Where(memRegion =>
-                memRegion.BaseAddress > minAddress && // We are above minimum distance
-                memRegion.BaseAddress < maxAddress && // we are below maximum distance
-                memRegion.State == MemoryState.Free); // Region is 'free'
+        var regions = memoryRegionEnumerator.EnumerateMemoryRegions().Where
+        (memRegion => memRegion.BaseAddress > minAddress && // We are above minimum distance
+                      memRegion.BaseAddress < maxAddress && // we are below maximum distance
+                      memRegion.State == MemoryState.Free); // Region is 'free'
 
         if (!regions.Any())
             throw new Exception();
 
-        return targetAddress.HasValue
-            ? regions.OrderBy(memRegion => memRegion.BaseAddress >= targetAddress.Value
-                ? memRegion.BaseAddress - targetAddress.Value
-                : targetAddress.Value - memRegion.BaseAddress).First()
-            : regions.First();
+        return targetAddress.HasValue ? regions.OrderBy(memRegion => memRegion.BaseAddress >= targetAddress.Value ? memRegion.BaseAddress - targetAddress.Value : targetAddress.Value - memRegion.BaseAddress).First() : regions.First();
     }
 }

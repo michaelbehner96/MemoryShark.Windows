@@ -18,8 +18,7 @@ public class WindowsMemoryDeallocator : IMemoryDeallocator
 
     public void Deallocate(long baseAddress)
     {
-        if (!WindowsPinvoke.VirtualFreeEx(processHandler.Process.Handle, (IntPtr)baseAddress, UIntPtr.Zero,
-                AllocationTypeFlags.Release))
+        if (!WindowsPinvoke.VirtualFreeEx(processHandler.Process.Handle, (IntPtr)baseAddress, UIntPtr.Zero, AllocationTypeFlags.Release))
             throw new PinvokeException(nameof(WindowsPinvoke.VirtualFreeEx), Marshal.GetLastPInvokeError());
     }
 }

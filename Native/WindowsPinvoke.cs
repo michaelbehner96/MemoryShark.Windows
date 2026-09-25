@@ -12,24 +12,19 @@ public static class WindowsPinvoke
     public static extern bool IsWow64Process([In] IntPtr process, [Out] out bool wow64Process);
 
     [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
-    public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, UIntPtr dwSize,
-        AllocationTypeFlags flAllocationType, MemoryProtectionFlags flProtect);
+    public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, UIntPtr dwSize, AllocationTypeFlags flAllocationType, MemoryProtectionFlags flProtect);
 
     [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
-    public static extern bool VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, UIntPtr dwSize,
-        AllocationTypeFlags dwFreeType);
+    public static extern bool VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, UIntPtr dwSize, AllocationTypeFlags dwFreeType);
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, UIntPtr nSize,
-        out UIntPtr lpNumberOfBytesWritten);
+    public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, UIntPtr nSize, out UIntPtr lpNumberOfBytesWritten);
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, [Out] byte[] lpBuffer,
-        UIntPtr dwSize, out UIntPtr lpNumberOfBytesRead);
+    public static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, [Out] byte[] lpBuffer, UIntPtr dwSize, out UIntPtr lpNumberOfBytesRead);
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern UIntPtr VirtualQueryEx(IntPtr hProcess, IntPtr lpAddress, out MemoryBasicInformation lpBuffer,
-        UIntPtr dwLength);
+    public static extern UIntPtr VirtualQueryEx(IntPtr hProcess, IntPtr lpAddress, out MemoryBasicInformation lpBuffer, UIntPtr dwLength);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern void GetSystemInfo(ref SystemInformation Info);
@@ -51,6 +46,7 @@ public static class WindowsPinvoke
     {
         var w32Mouse = new Win32Point();
         GetCursorPos(ref w32Mouse);
+
         return new Point(w32Mouse.X, w32Mouse.Y);
     }
 
