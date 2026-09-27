@@ -6,13 +6,23 @@ using MemoryShark.Windows.Native;
 
 namespace MemoryShark.Windows.Processes;
 
+/// <summary>Provides Windows process utilities without owning the supplied process's lifetime.</summary>
+/// <remarks>
+/// This handler and its dependent services belong to one attachment. The caller owns cancellation,
+/// cleanup, and Process disposal. Do not close, dispose, or reassociate the supplied Process while
+/// operations are running. Construct a new process-bound composition when attaching again;
+/// previously resolved addresses and tracked allocations must not carry over to the new target.
+/// </remarks>
 public class WindowsProcessHandler : IProcessHandler
 {
+    /// <summary>Creates a handler that borrows the supplied process without taking disposal ownership.</summary>
+    /// <param name="process">A process associated with the target for the lifetime of this attachment.</param>
     public WindowsProcessHandler(Process process)
     {
         Process = process ?? throw new ArgumentNullException(nameof(process));
     }
 
+    /// <inheritdoc />
     public Process Process { get; }
 
     public bool Is64BitProcess

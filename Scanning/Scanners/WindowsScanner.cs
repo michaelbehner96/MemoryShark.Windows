@@ -37,7 +37,7 @@ public class WindowsScanner : IScanner
         ulong bytesSkipped = 0;
         var skippedDetailsTruncated = false;
 
-        using var regions = memoryRegionEnumerator.EnumerateMemoryRegions().GetEnumerator();
+        using var regions = memoryRegionEnumerator.EnumerateMemoryRegions(cancellationToken).GetEnumerator();
 
         while (true)
         {

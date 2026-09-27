@@ -18,16 +18,22 @@ public class WindowsMemoryRegionInformationProvider : IMemoryRegionInformationPr
 
     public MemoryBasicInformation GetRegionInformation(long address)
     {
+        if (address < 0) throw new ArgumentOutOfRangeException(nameof(address));
+
         if (!OperatingSystem.IsWindows())
             throw new PlatformNotSupportedException("Windows memory-region queries are only available on Windows.");
 
         if (!Environment.Is64BitProcess)
             throw new PlatformNotSupportedException("Memory-region queries require a 64-bit calling process because the current MemoryBasicInformation layout is 64-bit.");
 
-        var virtualQuerySuccess = WindowsPinvoke.VirtualQueryEx(processHandler.Process.Handle, (IntPtr)address, out var memInfo, new UIntPtr((uint)Marshal.SizeOf<MemoryBasicInformation>())) != UIntPtr.Zero;
+        var expectedInformationSize = (uint)Marshal.SizeOf<MemoryBasicInformation>();
+        var returnedInformationSize = WindowsPinvoke.VirtualQueryEx(processHandler.Process.Handle, (IntPtr)address, out var memInfo, new UIntPtr(expectedInformationSize));
 
-        if (!virtualQuerySuccess)
+        if (returnedInformationSize == UIntPtr.Zero)
             throw new PinvokeException(nameof(WindowsPinvoke.VirtualQueryEx), Marshal.GetLastPInvokeError());
+
+        if (returnedInformationSize.ToUInt64() != expectedInformationSize)
+            throw new InvalidOperationException($"VirtualQueryEx returned {returnedInformationSize.ToUInt64()} bytes; expected {expectedInformationSize} for MemoryBasicInformation.");
 
         return memInfo;
     }

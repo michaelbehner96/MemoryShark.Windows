@@ -57,7 +57,7 @@ public class WindowsNearbyAllocationCandidateProvider : INearbyAllocationCandida
         // This avoids materializing every granularity-sized candidate in a large region.
         var candidateQueue = new PriorityQueue<CandidateCursor, (ulong Distance, ulong Address)>();
 
-        foreach (var memoryRegion in memoryRegionEnumerator.EnumerateMemoryRegions())
+        foreach (var memoryRegion in memoryRegionEnumerator.EnumerateMemoryRegions(cancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
 

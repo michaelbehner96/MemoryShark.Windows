@@ -176,9 +176,9 @@ namespace NearbyAllocation.Tests
 
             MemoryBasicInformation[] regions = memoryRegionEnumerator.EnumerateMemoryRegions().ToArray();
             Assert(systemInformationProvider.QueryCount == 1, "Query injected system information once per enumeration.");
-            Assert(memoryRegionInformationProvider.QueriedAddresses.SequenceEqual(new long[] { 16, 32, 48 }),
+            Assert(memoryRegionInformationProvider.QueriedAddresses.SequenceEqual(new long[] { 16, 32, 48, 64 }),
                 "Region queries must follow the injected address bounds.");
-            Assert(regions.Select(region => region.BaseAddress).SequenceEqual(new ulong[] { 16, 32, 48 }),
+            Assert(regions.Select(region => region.BaseAddress).SequenceEqual(new ulong[] { 16, 32, 48, 64 }),
                 "Enumeration must return the injected analyzer's regions.");
             Expect<ArgumentNullException>(() => new WindowsMemoryRegionEnumerator(null!, systemInformationProvider));
             Expect<ArgumentNullException>(() => new WindowsMemoryRegionEnumerator(memoryRegionInformationProvider, null!));
@@ -248,8 +248,9 @@ namespace NearbyAllocation.Tests
         private readonly MemoryBasicInformation[] regions;
         public int EnumerationCount { get; private set; }
         public TestRegionEnumerator(params MemoryBasicInformation[] regions) { this.regions = regions; }
-        public IEnumerable<MemoryBasicInformation> EnumerateMemoryRegions()
+        public IEnumerable<MemoryBasicInformation> EnumerateMemoryRegions(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             EnumerationCount++;
             return regions;
         }

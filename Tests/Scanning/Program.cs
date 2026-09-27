@@ -120,9 +120,9 @@ internal static class Program
             Exception caught = Expect<Exception>(() => CreateScanner(memory, pagesPerRead: 2).Scan(new UnalignedPatternMatcher(), new byte?[] { 0 }, options));
             Assert(ReferenceEquals(caught, failure) && memory.Reads.Count == 1, "Fatal error must propagate unchanged.");
         }
-        memory = new TestMemory(4096, new byte[32]) { ReturnShortBuffers = true };
+        memory = new TestMemory(4096, new byte[32]) { ReportIncompleteTransfer = true };
         result = CreateScanner(memory, pagesPerRead: 2).Scan(new UnalignedPatternMatcher(), new byte?[] { 0 }, options);
-        Assert(result.BytesRead == 0 && result.BytesSkipped == 32 && result.Matches.Count == 0, "Never scan short buffers.");
+        Assert(result.BytesRead == 0 && result.BytesSkipped == 32 && result.Matches.Count == 0, "Backend-reported incomplete transfers become gaps.");
         Expect<IncompleteMemoryTransferException>(() => CreateScanner(memory, pagesPerRead: 1, readFailurePolicy: MemoryReadFailurePolicy.Stop)
             .Scan(new UnalignedPatternMatcher(), new byte?[] { 0 }, options));
     }
@@ -202,10 +202,10 @@ internal static class Program
         Expect<PinvokeException>(() => stopReader.ReadRange(address, length).ToArray());
         Assert(failedMemory.Reads.Count == 1, "Stop policy performs no partial-page recovery.");
 
-        var shortMemory = new TestMemory(address, new byte[length]) { ReturnShortBuffers = true };
+        var shortMemory = new TestMemory(address, new byte[length]) { ReportIncompleteTransfer = true };
         var shortResults = new WindowsMemoryRangeReader(shortMemory, new TestSystemInformation()).ReadRange(address, length).ToArray();
         Assert(shortResults.All(result => result.Data == null) && shortResults.Sum(result => result.LengthInBytes) == length,
-            "Incomplete edge reads never expose partial data as success.");
+            "Recover backend-reported incomplete edge transfers without exposing data.");
 
         using var cancellation = new CancellationTokenSource();
         var canceledMemory = new TestMemory(address, new byte[length]) { FailedPage = 257, AfterRead = () => cancellation.Cancel() };
@@ -452,7 +452,7 @@ internal sealed class TestMemory : IMemoryIO
     public byte[] Data { get; }
     public int? FailedPage { get; init; }
     public bool FailOddPages { get; init; }
-    public bool ReturnShortBuffers { get; init; }
+    public bool ReportIncompleteTransfer { get; init; }
     public Exception? Failure { get; init; }
     public Action? AfterRead { get; set; }
     public List<(long Address, int Length)> Reads { get; } = new();
@@ -464,8 +464,9 @@ internal sealed class TestMemory : IMemoryIO
         for (long page = address / 16; page <= checked(address + ((long)length - 1)) / 16; page++)
             if (page == FailedPage || (FailOddPages && page % 2 != 0))
                 throw new PinvokeException("ReadProcessMemory", 299);
-        int returnedLength = (int)length - (ReturnShortBuffers ? 1 : 0);
-        byte[] result = Data.AsSpan(checked((int)(address - BaseAddress)), returnedLength).ToArray();
+        if (ReportIncompleteTransfer)
+            throw new IncompleteMemoryTransferException("ReadMemory", address, length, length - 1);
+        byte[] result = Data.AsSpan(checked((int)(address - BaseAddress)), (int)length).ToArray();
         AfterRead?.Invoke();
         return result;
     }
@@ -475,7 +476,11 @@ internal sealed class TestRegions : IMemoryRegionEnumerator<MemoryBasicInformati
 {
     private readonly MemoryBasicInformation[] regions;
     public TestRegions(params MemoryBasicInformation[] regions) { this.regions = regions; }
-    public IEnumerable<MemoryBasicInformation> EnumerateMemoryRegions() => regions;
+    public IEnumerable<MemoryBasicInformation> EnumerateMemoryRegions(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return regions;
+    }
 }
 internal sealed class TestSystemInformation : IWindowsSystemInformationProvider
 {

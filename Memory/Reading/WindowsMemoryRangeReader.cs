@@ -108,12 +108,6 @@ public sealed class WindowsMemoryRangeReader : IMemoryRangeReader
         {
             var data = memoryIO.ReadMemory(address, (ulong)length);
 
-            if (data.Length < length)
-                throw new IncompleteMemoryTransferException(nameof(IMemoryIO.ReadMemory), address, (ulong)length, (ulong)data.Length);
-
-            if (data.Length > length)
-                throw new InvalidOperationException("The memory reader returned more bytes than requested.");
-
             cancellationToken.ThrowIfCancellationRequested();
 
             return new MemoryReadResult(address, length, data, null);
